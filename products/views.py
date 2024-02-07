@@ -65,3 +65,4 @@ class FileDetailView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         serializer = FileSerializer(f, context={'request': request})
         return Response(serializer.data)
+

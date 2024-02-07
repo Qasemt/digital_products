@@ -3,10 +3,13 @@ Django==5.0.1
 djangorestframework==3.14.0
 
 #Authention
-
+django-allauth==0.60.1
 
 
 #detabase
 
 #photo and image
 pillow==10.2.0
+
+
+djangorestframework==3.14.0
