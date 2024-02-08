@@ -35,7 +35,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'products',
-    #'accounts',
+    'accounts',
 
     # authentication 
     # 'django.contrib.sites', # Add this
@@ -55,7 +55,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'allauth.account.middleware.AccountMiddleware',
+  #  'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'digital_products.urls'
