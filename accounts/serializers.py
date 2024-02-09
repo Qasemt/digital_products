@@ -6,6 +6,13 @@ class ProfileSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ("id", "name", "last_name", "birthday", "mobile_number", "image")
+        fields = (
+            "id",
+            "first_name",
+            "last_name",
+            "birthday",
+            "mobile_number",
+            "image_url",
+        )
 
     #   URL_FIELD_NAME = 'image'

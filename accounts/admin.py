@@ -21,7 +21,13 @@ from django.contrib.auth.admin import UserAdmin
 
 
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ["CustomUser", "name", "last_name", "birthday", "mobile_number"]
+    list_display = [
+        "CustomUser",
+        "first_name",
+        "last_name",
+        "birthday",
+        "mobile_number",
+    ]
 
 
 admin.site.register(CustomUser)

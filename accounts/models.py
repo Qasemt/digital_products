@@ -3,17 +3,13 @@ from django.core.files.storage import default_storage
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
-
 import re
 from django.contrib.auth.models import AbstractBaseUser
-
 from digital_products import settings
 from .managers import CustomUserManager
 from django.contrib.auth.models import PermissionsMixin
-
 from django.contrib.auth.base_user import BaseUserManager
 from django.utils.translation import gettext_lazy as _
-
 from django.contrib.auth.models import User
 
 
@@ -22,6 +18,7 @@ class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None):
         if not email:
             raise ValueError("Please provide email")
+
         ne = self.normalize_email(email)
         UPO = self.model(email=ne)
         UPO.set_password(password)
@@ -41,8 +38,6 @@ class CustomUserManager(BaseUserManager):
 class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     email = models.EmailField(primary_key=True)
-    # first_name = models.CharField(max_length=100)
-    # last_name = models.CharField(max_length=100)
     is_active = models.BooleanField(default=True)
     is_superuser = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
@@ -66,17 +61,15 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
 
 # ======== profile
-
-
 class Profile(models.Model):
     CustomUser = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
-    name = models.CharField(max_length=255, blank=True)
+    first_name = models.CharField(max_length=255, blank=True)
     last_name = models.CharField(max_length=255, blank=True)
     birthday = models.DateField(null=True)
     mobile_number = models.CharField(
         max_length=20,
     )
-    image = models.ImageField(upload_to="profiles/", blank=True, null=True)
+    image_url = models.ImageField(upload_to="profiles/", blank=True, null=True)
     created_time = models.DateTimeField(_("create time"), auto_now_add=True)
     updated_time = models.DateTimeField(_("update time"), auto_now=True)
 
@@ -87,7 +80,7 @@ class Profile(models.Model):
         db_table = _("profiles")
         verbose_name = _("Profile")
         verbose_name_plural = _("Profiles")
-        ordering = ["last_name", "name"]
+        ordering = ["last_name", "first_name"]
 
     def clean(self):
         # Validate the mobile_number field
@@ -95,20 +88,22 @@ class Profile(models.Model):
             # Regex pattern for the format +989359445555
             pattern = r"^\+[0-9]{12}$"
             if not re.match(pattern, self.mobile_number):
-                raise ValidationError(
-                    "Mobile number should be in the format +989359445555"
-                )
+                raise ValidationError("Mobile number should be in the format +989359445555")
 
     # ّبرای حذف عکس قدیمی اگر عوض کرده باشد.
     def save(self, *args, **kwargs):
+        if self.CustomUser.email:
+            # Generate a unique filename for the image using the email
+            filename = f"{self.CustomUser.email}.jpg"
+            self.image_url.name = filename
 
         if self.pk:
 
             current_profile = Profile.objects.get(pk=self.pk)
 
-            if current_profile.image and self.image != current_profile.image:
+            if current_profile.image_url and self.image_url != current_profile.image_url:
                 # Delete the old image from storage
-                if default_storage.exists(current_profile.image.name):
-                    default_storage.delete(current_profile.image.name)
+                if default_storage.exists(current_profile.image_url.name):
+                    default_storage.delete(current_profile.image_url.name)
 
         super().save(*args, **kwargs)
