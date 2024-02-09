@@ -3,10 +3,10 @@ from django.core.files.storage import default_storage
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
-from django.dispatch import receiver
+
 import re
 from django.contrib.auth.models import AbstractBaseUser
-from requests import Response
+
 from digital_products import settings
 from .managers import CustomUserManager
 from django.contrib.auth.models import PermissionsMixin
@@ -15,23 +15,22 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.utils.translation import gettext_lazy as _
 
 from django.contrib.auth.models import User
-from rest_framework import status
 
 
 class CustomUserManager(BaseUserManager):
 
-    def create_user(self, email, first_name, last_name, password=None):
+    def create_user(self, email, password=None):
         if not email:
             raise ValueError("Please provide email")
         ne = self.normalize_email(email)
-        UPO = self.model(email=ne, first_name=first_name, last_name=last_name)
+        UPO = self.model(email=ne)
         UPO.set_password(password)
         UPO.save()
 
         return UPO
 
-    def create_superuser(self, email, first_name, last_name, password):
-        SUPO = self.create_user(email, first_name, last_name, password)
+    def create_superuser(self, email, password):
+        SUPO = self.create_user(email, password)
         SUPO.is_staff = True
         SUPO.is_superuser = True
         SUPO.save()
@@ -42,32 +41,28 @@ class CustomUserManager(BaseUserManager):
 class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     email = models.EmailField(primary_key=True)
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
+    # first_name = models.CharField(max_length=100)
+    # last_name = models.CharField(max_length=100)
     is_active = models.BooleanField(default=True)
     is_superuser = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     objects = CustomUserManager()
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["first_name", "last_name"]
+    # REQUIRED_FIELDS = ["first_name", "last_name"]
 
-    def create_user(self, email, first_name, last_name, password=None, **extra_fields):
+    def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError("The Email field must be set.")
         email = self.normalize_email(email)
-        user = self.model(
-            email=email, first_name=first_name, last_name=last_name, **extra_fields
-        )
+        user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(
-        self, email, first_name, last_name, password=None, **extra_fields
-    ):
+    def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        return self.create_user(email, first_name, last_name, password, **extra_fields)
+        return self.create_user(email, password, **extra_fields)
 
 
 # ======== profile
@@ -117,21 +112,3 @@ class Profile(models.Model):
                     default_storage.delete(current_profile.image.name)
 
         super().save(*args, **kwargs)
-
-    ###
-
-
-@receiver(post_save, sender=CustomUser)
-def create_profile(sender, instance, created, **kwargs):
-    if created:
-        Profile.objects.create(CustomUser=instance)
-
-
-@receiver(post_save, sender=CustomUser)
-def save_profile(sender, instance, **kwargs):
-    try:
-        instance.profile.save()
-    except Profile.DoesNotExist:
-        return Response(
-            {"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND
-        )
