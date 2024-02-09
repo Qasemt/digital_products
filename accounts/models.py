@@ -1,47 +1,116 @@
 from django.db import models
-from django.contrib.auth.models import User
 from django.core.files.storage import default_storage
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 import re
+from django.contrib.auth.models import AbstractBaseUser
+from requests import Response
+from digital_products import settings
+from .managers import CustomUserManager
+from django.contrib.auth.models import PermissionsMixin
+
+from django.contrib.auth.base_user import BaseUserManager
+from django.utils.translation import gettext_lazy as _
+
+from django.contrib.auth.models import User
+from rest_framework import status
+
+
+class CustomUserManager(BaseUserManager):
+
+    def create_user(self, email, first_name, last_name, password=None):
+        if not email:
+            raise ValueError("Please provide email")
+        ne = self.normalize_email(email)
+        UPO = self.model(email=ne, first_name=first_name, last_name=last_name)
+        UPO.set_password(password)
+        UPO.save()
+
+        return UPO
+
+    def create_superuser(self, email, first_name, last_name, password):
+        SUPO = self.create_user(email, first_name, last_name, password)
+        SUPO.is_staff = True
+        SUPO.is_superuser = True
+        SUPO.save()
+        return SUPO
+
+
+# ____ USER ___________
+class CustomUser(AbstractBaseUser, PermissionsMixin):
+
+    email = models.EmailField(primary_key=True)
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+    is_superuser = models.BooleanField(default=False)
+    is_staff = models.BooleanField(default=False)
+    objects = CustomUserManager()
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["first_name", "last_name"]
+
+    def create_user(self, email, first_name, last_name, password=None, **extra_fields):
+        if not email:
+            raise ValueError("The Email field must be set.")
+        email = self.normalize_email(email)
+        user = self.model(
+            email=email, first_name=first_name, last_name=last_name, **extra_fields
+        )
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(
+        self, email, first_name, last_name, password=None, **extra_fields
+    ):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        return self.create_user(email, first_name, last_name, password, **extra_fields)
+
+
+# ======== profile
+
 
 class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    name = models.CharField(max_length=255)
-    last_name = models.CharField(max_length=255)
+    CustomUser = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255, blank=True)
+    last_name = models.CharField(max_length=255, blank=True)
     birthday = models.DateField(null=True)
-    mobile_number = models.CharField(max_length=20,)
-    image = models.ImageField(upload_to='profiles/', blank=True, null=True)
-    created_time = models.DateTimeField(_('create time'),auto_now_add=True)
-    updated_time = models.DateTimeField(_('update time'),auto_now=True)
+    mobile_number = models.CharField(
+        max_length=20,
+    )
+    image = models.ImageField(upload_to="profiles/", blank=True, null=True)
+    created_time = models.DateTimeField(_("create time"), auto_now_add=True)
+    updated_time = models.DateTimeField(_("update time"), auto_now=True)
 
-    
     def __str__(self):
-        return self.user.username
+        return self.CustomUser.email
 
     class Meta:
-        db_table = _('profiles')
-        verbose_name = _('Profile')
-        verbose_name_plural = _('Profiles')
-        ordering = ['last_name', 'name']
-
+        db_table = _("profiles")
+        verbose_name = _("Profile")
+        verbose_name_plural = _("Profiles")
+        ordering = ["last_name", "name"]
 
     def clean(self):
         # Validate the mobile_number field
         if self.mobile_number:
-            pattern = r'^\+[0-9]{12}$'  # Regex pattern for the format +989359445555
+            # Regex pattern for the format +989359445555
+            pattern = r"^\+[0-9]{12}$"
             if not re.match(pattern, self.mobile_number):
-                raise ValidationError('Mobile number should be in the format +989359445555')
-            
-    #ّبرای حذف عکس قدیمی اگر عوض کرده باشد.
+                raise ValidationError(
+                    "Mobile number should be in the format +989359445555"
+                )
+
+    # ّبرای حذف عکس قدیمی اگر عوض کرده باشد.
     def save(self, *args, **kwargs):
-         
+
         if self.pk:
-            
+
             current_profile = Profile.objects.get(pk=self.pk)
-           
+
             if current_profile.image and self.image != current_profile.image:
                 # Delete the old image from storage
                 if default_storage.exists(current_profile.image.name):
@@ -49,14 +118,20 @@ class Profile(models.Model):
 
         super().save(*args, **kwargs)
 
+    ###
 
-@receiver(post_save, sender=User)
+
+@receiver(post_save, sender=CustomUser)
 def create_profile(sender, instance, created, **kwargs):
     if created:
-        Profile.objects.create(user=instance)
+        Profile.objects.create(CustomUser=instance)
 
-@receiver(post_save, sender=User)
+
+@receiver(post_save, sender=CustomUser)
 def save_profile(sender, instance, **kwargs):
-    instance.profile.save()
-
-
+    try:
+        instance.profile.save()
+    except Profile.DoesNotExist:
+        return Response(
+            {"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND
+        )
