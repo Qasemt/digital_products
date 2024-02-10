@@ -3,7 +3,7 @@ from django.shortcuts import redirect, render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from accounts.forms import AccountAuthenticationForm
+from accounts.forms import AccountAuthenticationForm, RegistrationForm
 from .models import Profile
 from .serializers import ProfileSerializer
 from django.contrib.auth import login, authenticate, logout
@@ -99,6 +99,33 @@ def login_view(request, *args, **kwargs):
 def logout_view(request):
     logout(request)
     return redirect("home")
+
+
+def register_view(request, *args, **kwargs):
+    user = request.user
+    if user.is_authenticated:
+        return HttpResponse("You are already authenticated as " + str(user.email))
+
+    context = {}
+    if request.POST:
+        form = RegistrationForm(request.POST)
+        if form.is_valid():
+            form.save()
+            email = form.cleaned_data.get("email").lower()
+            raw_password = form.cleaned_data.get("password1")
+            account = authenticate(email=email, password=raw_password)
+            login(request, account)
+            destination = kwargs.get("next")
+            if destination:
+                return redirect(destination)
+            return redirect("home")
+        else:
+            context["registration_form"] = form
+
+    else:
+        form = RegistrationForm()
+        context["registration_form"] = form
+    return render(request, "register.html", context)
 
 
 def get_redirect_if_exists(request):

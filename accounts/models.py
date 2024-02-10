@@ -69,6 +69,7 @@ class Profile(models.Model):
     mobile_number = models.CharField(
         max_length=20,
     )
+
     image_url = models.ImageField(upload_to="profiles/", blank=True, null=True)
     created_time = models.DateTimeField(_("create time"), auto_now_add=True)
     updated_time = models.DateTimeField(_("update time"), auto_now=True)

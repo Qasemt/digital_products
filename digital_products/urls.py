@@ -4,7 +4,7 @@ from django.urls import include, path
 from django.conf import settings
 from django.conf.urls.static import static
 
-from accounts.views import login_view, logout_view, home_view
+from accounts.views import login_view, logout_view, home_view, register_view
 from digital_products.settings import BASE_DIR
 
 urlpatterns = [
@@ -12,7 +12,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("login/", login_view, name="login"),
     path("logout/", logout_view, name="logout"),
-    path("register/", home_view, name="register"),
+    path("register/", register_view, name="register"),
     path("password_reset/", home_view, name="password_reset"),
     # path("", include("accounts.urls")),
     # path("", include("products.urls")),
