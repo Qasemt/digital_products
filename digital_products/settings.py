@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 from .local_settings import *
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+ALLOWED_HOSTS = ["*"]
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -52,7 +52,9 @@ ROOT_URLCONF = "digital_products.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [
+            os.path.join(BASE_DIR, "templates"),
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -64,7 +66,6 @@ TEMPLATES = [
         },
     },
 ]
-
 WSGI_APPLICATION = "digital_products.wsgi.application"
 
 
@@ -98,9 +99,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.0/topics/i18n/
-
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "UTC"
@@ -110,13 +108,14 @@ USE_I18N = True
 USE_TZ = True
 
 
-STATIC_URL = "static/"
-
-
 # Media Files
 MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
 MEDIA_URL = "/media/"
 
+
+# STATIC
+STATIC_URL = "/static/"
+STATICFILES_DIRS = ("static",)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -152,5 +151,3 @@ CACHES = {
 #     }
 # }
 AUTH_USER_MODEL = "accounts.CustomUser"
-
-# LOGIN_REDIRECT_URL = '/'
