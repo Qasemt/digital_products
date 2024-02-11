@@ -14,9 +14,9 @@ import os
 from pathlib import Path
 from .local_settings import *
 
-ALLOWED_HOSTS = ["*"]
-BASE_DIR = Path(__file__).resolve().parent.parent
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+DOMAIN_NAME = "Qasemt.com"
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-6u!vw=y1b!1t(+j1^-#s%*!34zz)upc@cp245-y-lr#(kr^y=p"
@@ -68,6 +68,16 @@ TEMPLATES = [
 ]
 WSGI_APPLICATION = "digital_products.wsgi.application"
 
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+EMAIL_PORT = 587
+EMAIL_HOST_USER = SET_EMAIL_HOST_USER_LOCAL  # EMAIL_HOST_USER = os.environ.get('SET_EMAIL_HOST_USER_LOCAL')
+EMAIL_HOST_PASSWORD = SET_EMAIL_HOST_PASSWORD_LOCAL  # EMAIL_HOST_PASSWORD = os.environ.get('SET_EMAIL_HOST_PASSWORD_LOCAL')
+DEFAULT_FROM_EMAIL = "rayreadeer@gmail.com"
+
+print(EMAIL_HOST_USER)
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
