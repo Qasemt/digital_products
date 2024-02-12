@@ -1,6 +1,5 @@
 from enum import IntEnum
 import json
-from django.forms import ValidationError
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from rest_framework.views import APIView
@@ -14,9 +13,7 @@ from django.contrib import messages
 from .models import CustomUser
 from django.core.mail import send_mail
 from django.conf import settings
-from django.http import HttpResponseBadRequest
 from django.core.cache import cache
-from django.core.serializers.json import DjangoJSONEncoder
 
 
 #:::::::::: Modelsss
@@ -207,15 +204,17 @@ def ForgetPassword(request):
 
 class ChangePassword(APIView):
     def get(self, request, token):
-
+        current_url = request.build_absolute_uri()  # Get the current request URL
         context = {}
         cached_data = cache.get(key=token)
         if cached_data:
             model_instance = json.loads(cached_data)
             context = {"user_pk": model_instance["email"]}
         else:
-            messages.warning(request, "Token not valid.")
-            context = {"error_messages": messages.get_messages(request)}
+            message = "Token is invalid."
+            messages.error(request, message)
+
+        context = {"message": message}
 
         return render(request, "change_password.html", context)
 
@@ -245,9 +244,7 @@ class ChangePassword(APIView):
             return redirect("login")
 
         except Exception as e:
-            messages.error(request, str(e))
-            context = {"error_messages": messages.get_messages(request)}
-            return render(request, "change_password.html", context)
+            return HttpResponse(f"has been error {str(e)}")
 
 
 def user_verify(request, email_token):
