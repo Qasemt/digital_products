@@ -110,6 +110,11 @@ def login_view(request, *args, **kwargs):
                 if destination:
                     return redirect(destination)
                 return redirect("home")
+        else:
+            message = "Email Not Valid"
+            messages.error(request, message)
+            context = {"message": message}
+            return render(request, "login.html", context)
 
     else:
         form = AccountAuthenticationForm()
