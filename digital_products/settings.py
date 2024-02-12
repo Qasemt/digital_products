@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 from .local_settings import *
 
-
+APP_NAME = "Digital Products"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DOMAIN_NAME = "Qasemt.com"
 

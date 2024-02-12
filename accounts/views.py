@@ -1,6 +1,7 @@
-from enum import IntEnum
 import json
-from django.http import HttpResponse
+import uuid
+from enum import IntEnum
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect, render
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -19,7 +20,7 @@ from django.core.cache import cache
 #:::::::::: Modelsss
 class ActionType(IntEnum):
     FORGET_PASSWORD = 1
-    CHANGE_PASSWORD = 2
+    VERIFYING_EMAIL = 2
 
 
 class ActionPassword:
@@ -125,30 +126,40 @@ def login_view(request, *args, **kwargs):
 
 
 def register_view(request, *args, **kwargs):
-    user = request.user
-    if user.is_authenticated:
-        return HttpResponse("You are already authenticated as " + str(user.email))
 
-    context = {}
-    if request.POST:
-        form = RegistrationForm(request.POST)
-        if form.is_valid():
-            form.save()
-            email = form.cleaned_data.get("email").lower()
-            raw_password = form.cleaned_data.get("password1")
-            account = authenticate(email=email, password=raw_password)
-            login(request, account)
-            destination = kwargs.get("next")
-            if destination:
-                return redirect(destination)
-            return redirect("home")
-        else:
-            context["registration_form"] = form
+    if request.method == "POST":
+        global username
+        global email
 
-    else:
-        form = RegistrationForm()
-        context["registration_form"] = form
-    return render(request, "register.html", context)
+        email = request.POST.get("email")
+        pass1 = request.POST.get("password1")
+        pass2 = request.POST.get("password2")
+
+        if CustomUser.objects.filter(email=email).first():
+            messages.warning(request, "Username is already taken")
+            return HttpResponseRedirect(request.path_info)
+
+        if CustomUser.objects.filter(email=email).first():
+            messages.warning(request, "Email is already taken")
+            return HttpResponseRedirect(request.path_info)
+
+        if pass1 != pass2:
+            messages.warning(request, "Both passwords should match!")
+            return HttpResponseRedirect(request.path_info)
+
+        user_obj = CustomUser.objects.create_user(email=email, password=pass1)
+        user_obj.save()
+        email_token = str(uuid.uuid4())
+
+        m = ActionPassword(email, type_action=ActionType.VERIFYING_EMAIL)
+        json_string = m.to_json()
+        cache.set(email_token, json_string, 3600)  # Cache the data for 10 minute
+
+        send_mail_after_signup(email, email_token)
+        messages.success(request, "Email has been sent to verify your account!")
+        return redirect("register")
+
+    return render(request, "register.html")
 
 
 def get_redirect_if_exists(request):
@@ -164,6 +175,19 @@ def home_view(request):
 
 
 import uuid
+
+
+# for verifying email
+def send_mail_after_signup(email, email_token):
+    subject = "Action Needed!!! Your account needs to be verify!"
+
+    if settings.IS_DEVEL:
+        message = f"Please click on the link to verify your account. http://127.0.0.1:8000/verify/{email_token}"
+    else:
+        message = f"Please click on the link to verify your account. https://{settings.DOMAIN_NAME}/verify/{email_token}"
+    email_from = settings.EMAIL_HOST_USER
+    recipient_list = [email]
+    send_mail(subject, message, email_from, recipient_list)
 
 
 # for sending forget password link
@@ -209,17 +233,14 @@ def ForgetPassword(request):
 
 class ChangePassword(APIView):
     def get(self, request, token):
-        current_url = request.build_absolute_uri()  # Get the current request URL
         context = {}
         cached_data = cache.get(key=token)
         if cached_data:
             model_instance = json.loads(cached_data)
             context = {"user_pk": model_instance["email"]}
         else:
-            message = "Token is invalid."
-            messages.error(request, message)
-
-        context = {"message": message}
+            messages.error(request, "Token is invalid.")
+            return redirect("login")
 
         return render(request, "change_password.html", context)
 
@@ -256,15 +277,15 @@ def user_verify(request, email_token):
 
     try:
         cached_data = cache.get(key=email_token)
-
+        model_instance = {}
         if cached_data:
             model_instance = json.loads(cached_data)
         else:
-            messages.info(request, "Your account is already verified.")
-            print(messages)
+            messages.error(request, "token not valid ")
             return redirect("login")
 
-        profile_obj = Profile.objects.filter(email=email_token).first()
+        user = CustomUser.objects.filter(email=model_instance["email"]).first()
+        profile_obj = user.profile
         if profile_obj:
             if profile_obj.is_email_verified:
                 messages.info(request, "Your account is already verified.")
@@ -273,10 +294,10 @@ def user_verify(request, email_token):
 
             profile_obj.is_email_verified = True
             profile_obj.save()
-            subject = f"!! New User Registered In Django Authentication !!"
-            message = f"""Hi Prajwal, We have noticed that new user is registered in your Django Authentication System .
-            Details of user -  Email - {model_instance.email}
-            You can check user details from here - https://django-auth-v46x.onrender.com/superadmin/ """
+            subject = f"!! New User Registered In {settings.APP_NAME} !!"
+            message = f"""Hi , We have noticed that new user is registered in your  {settings.APP_NAME} Authentication System .
+            Details of user -  Email - {user.email}
+             """
             send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [settings.DEFAULT_FROM_EMAIL])
             messages.success(request, "Your account has been verified. Now you can login.")
             return redirect("login")
