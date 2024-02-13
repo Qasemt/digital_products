@@ -104,9 +104,15 @@ def login_view(request, *args, **kwargs):
         if form.is_valid():
             email = request.POST["email"]
             password = request.POST["password"]
+
             user = authenticate(email=email, password=password)
 
             if user:
+                profile_obj = Profile.objects.filter(CustomUser=user).first()
+                if not profile_obj.is_email_verified:
+                    messages.warning(request, "Your account is not verified. please check your mail.")
+                    return redirect("login")
+
                 login(request, user)
                 if destination:
                     return redirect(destination)
