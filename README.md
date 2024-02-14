@@ -24,4 +24,5 @@ SET_EMAIL_HOST_PASSWORD_LOCAL = "******"
 
 ```
 python manage.py test apps.products.tests.test_models
+python manage.py test apps.products.tests.test_views
 ```
