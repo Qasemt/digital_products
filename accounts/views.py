@@ -109,7 +109,7 @@ def login_view(request, *args, **kwargs):
 
             if user:
                 profile_obj = Profile.objects.filter(CustomUser=user).first()
-                if not profile_obj.is_email_verified:
+                if not user.is_superuser and not profile_obj.is_email_verified:
                     messages.warning(request, "Your account is not verified. please check your mail.")
                     return redirect("login")
 
@@ -174,10 +174,6 @@ def get_redirect_if_exists(request):
         if request.GET.get("next"):
             redirect = str(request.GET.get("next"))
     return redirect
-
-
-def home_view(request):
-    return render(request, "home.html", {})
 
 
 import uuid

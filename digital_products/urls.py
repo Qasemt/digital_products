@@ -4,13 +4,14 @@ from django.urls import include, path
 from django.conf import settings
 from django.conf.urls.static import static
 
-from accounts.views import login_view, logout_view, home_view, register_view, ForgetPassword, ChangePassword, user_verify
+
 from digital_products.settings import BASE_DIR
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("accounts.urls")),
-    path("", include("products.urls")),
+    path("", include("apps.products.urls")),
+    path("", include("apps.home.urls")),
 ]
 
 
