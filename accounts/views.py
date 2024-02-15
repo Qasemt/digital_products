@@ -112,7 +112,7 @@ def login_view(request, *args, **kwargs):
                 if not user.is_superuser and not profile_obj.is_email_verified:
                     messages.warning(request, "Your account is not verified. please check your mail.")
                     return redirect("login")
-
+                messages.success(request, "Logging is susccessfully.", "success")
                 login(request, user)
                 if destination:
                     return redirect(destination)
