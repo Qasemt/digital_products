@@ -1,17 +1,19 @@
-import urllib
-import urllib.request
-import pandas as pd
-import uuid
+#import urllib
+#import urllib.request
+#import pandas as pd
+#import uuid
 from django.core.management.base import BaseCommand, CommandError
 
 
 class Command(BaseCommand):
+    help = 'i will insert data from csv file '
+
     def add_arguments(self, parser):
         parser.add_argument('csv_path',type=str,help='specifies csv path for exam : /csv/data.csv ')
 
     def handle(self, *args, **kwargs):
 
-        df = pd.read_csv("csv/data.csv")
+       # df = pd.read_csv("csv/data.csv")
         self.stdout.write(self.style.SUCCESS("read  data.csv "))
 
     # for id, vendor_id, title, image, total_sales, post_content, status, stock_qty, price, category in zip(df.ID, df.post_author, df.post_title, df.images, df.total_sales, df.post_content, df.post_status, df.stock, df.regular_price, df.product_cat):
