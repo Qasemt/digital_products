@@ -18,5 +18,5 @@ class CategoryModelTest(TestCase):
     def test_child_category(self):
         child_category = Category.objects.get(id=2)
         self.assertEqual(child_category.title, "Child Category")
-        self.assertEqual(child_category.parent_id, 1)
+        self.assertEqual(child_category.parent, 1)
         self.assertTrue(child_category.is_enable)

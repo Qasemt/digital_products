@@ -1,5 +1,7 @@
 Note: The local_settings.py file is typically added to the .gitignore file to ensure that sensitive information, such as passwords or API keys, is not committed to version control.
 
+# Django Example 
+
 # Setting up local_settings.py
 
 1. Clone the repository to your local machine:

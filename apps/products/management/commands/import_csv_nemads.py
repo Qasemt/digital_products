@@ -2,6 +2,7 @@
 #import urllib.request
 #import pandas as pd
 #import uuid
+#import os
 from django.core.management.base import BaseCommand, CommandError
 
 
@@ -12,9 +13,9 @@ class Command(BaseCommand):
         parser.add_argument('csv_path',type=str,help='specifies csv path for exam : /csv/data.csv ')
 
     def handle(self, *args, **kwargs):
-
+        
        # df = pd.read_csv("csv/data.csv")
-        self.stdout.write(self.style.SUCCESS("read  data.csv "))
+         self.stdout.write(self.style.SUCCESS("read  data.csv "))
 
     # for id, vendor_id, title, image, total_sales, post_content, status, stock_qty, price, category in zip(df.ID, df.post_author, df.post_title, df.images, df.total_sales, df.post_content, df.post_status, df.stock, df.regular_price, df.product_cat):
     # Check if the product with the same 'id' already exists in the database
