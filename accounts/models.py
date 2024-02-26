@@ -1,19 +1,18 @@
 import re
 from django.db import models
 from django.core.files.storage import default_storage
-from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.contrib.auth.models import AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
 from django.contrib.auth.base_user import BaseUserManager
 from django.utils.translation import gettext_lazy as _
-from django.contrib.auth.models import User
+
 
 
 class CustomUserManager(BaseUserManager):
 
-    def create_user(self, email, password=None):
+    def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError("Please provide email")
 
@@ -24,7 +23,7 @@ class CustomUserManager(BaseUserManager):
 
         return UPO
 
-    def create_superuser(self, email, password):
+    def create_superuser(self, email, password, **extra_fields):
         SUPO = self.create_user(email, password)
         SUPO.is_staff = True
         SUPO.is_superuser = True
@@ -39,7 +38,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_superuser = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
-    objects = CustomUserManager()
+    c_objects = CustomUserManager()
     USERNAME_FIELD = "email"
     # REQUIRED_FIELDS = ["first_name", "last_name"]
 

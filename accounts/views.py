@@ -6,7 +6,7 @@ from django.shortcuts import redirect, render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from accounts.forms import AccountAuthenticationForm, RegistrationForm
+from .forms import AccountAuthenticationForm, RegistrationForm
 from .models import Profile
 from .serializers import ProfileSerializer
 from django.contrib.auth import login, authenticate, logout
@@ -15,7 +15,7 @@ from .models import CustomUser
 from django.core.mail import send_mail
 from django.conf import settings
 from django.core.cache import cache
-
+from rest_framework.status import HTTP_404_NOT_FOUND
 
 #:::::::::: Modelsss
 class ActionType(IntEnum):
@@ -34,10 +34,11 @@ class ActionPassword:
 
 
 class ProfileAPIView(APIView):
-    def get(self, request):
-        profiles = Profile.objects.all()
-        serializer = ProfileSerializer(profiles, many=True, context={"request": request})
-        return Response(serializer.data)
+    
+    # def get(self, request):
+    #     profiles = Profile.objects.all()
+    #     serializer = ProfileSerializer(profiles, many=True, context={"request": request})
+    #     return Response(serializer.data)
 
     def post(self, request):
         serializer = ProfileSerializer(data=request.data)
@@ -47,6 +48,7 @@ class ProfileAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request, pk=None):
+        
         if pk is not None:
             try:
                 profile = Profile.objects.get(pk=pk)
@@ -61,27 +63,34 @@ class ProfileAPIView(APIView):
             return Response(serializer.data)
 
     def put(self, request, pk=None):
-        if pk is not None:
-            profile = self.get_profile(pk)
-            if profile is None:
-                return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
-            serializer = ProfileSerializer(profile, data=request.data)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return Response({"detail": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
+       if pk is None:
+             return Response({"detail": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
+        
+       try:
+          profile = Profile.objects.get(pk=pk)
+       except Profile.DoesNotExist:
+          return Response(status=HTTP_404_NOT_FOUND)
+           
+ 
+       serializer = ProfileSerializer(profile, data=request.data)
+       if serializer.is_valid():
+          serializer.save()
+          return Response(serializer.data)
+           
+      
 
     def delete(self, request, pk=None):
-        if pk is not None:
-            profile = self.get_profile(pk)
-            if profile is None:
-                return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
-            profile.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        else:
-            return Response({"detail": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
+        if pk is None:
+             return Response({"detail": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
+       
+        try:
+             profile = Profile.objects.get(pk=pk)
+        except Profile.DoesNotExist:
+           return Response(status=HTTP_404_NOT_FOUND)
+            
+        profile.delete()
+        return Response(status=status.HTTP_200_OK)
+          
 
 
 def logout_view(request):
@@ -91,7 +100,6 @@ def logout_view(request):
 
 def login_view(request, *args, **kwargs):
     context = {}
-
     user = request.user
     if user.is_authenticated:
         return redirect("home")
@@ -109,10 +117,12 @@ def login_view(request, *args, **kwargs):
 
             if user:
                 profile_obj = Profile.objects.filter(CustomUser=user).first()
-                if not user.is_superuser and not profile_obj.is_email_verified:
+                if profile_obj is not None :
+                  if not profile_obj.CustomUser.is_superuser and not profile_obj.is_email_verified:
                     messages.warning(request, "Your account is not verified. please check your mail.")
                     return redirect("login")
-                messages.success(request, "Logging is susccessfully.", "success")
+                
+                #messages.success(request, "Logging is susccessfully.", "success")
                 login(request, user)
                 if destination:
                     return redirect(destination)
@@ -126,6 +136,7 @@ def login_view(request, *args, **kwargs):
     else:
         form = AccountAuthenticationForm()
 
+    
     context["login_form"] = form
 
     return render(request, "login.html", context)
@@ -141,11 +152,11 @@ def register_view(request, *args, **kwargs):
         pass1 = request.POST.get("password1")
         pass2 = request.POST.get("password2")
 
-        if CustomUser.objects.filter(email=email).first():
+        if CustomUser.c_objects.filter(email=email).first():
             messages.warning(request, "Username is already taken")
             return HttpResponseRedirect(request.path_info)
 
-        if CustomUser.objects.filter(email=email).first():
+        if CustomUser.c_objects.filter(email=email).first():
             messages.warning(request, "Email is already taken")
             return HttpResponseRedirect(request.path_info)
 
@@ -153,7 +164,7 @@ def register_view(request, *args, **kwargs):
             messages.warning(request, "Both passwords should match!")
             return HttpResponseRedirect(request.path_info)
 
-        user_obj = CustomUser.objects.create_user(email=email, password=pass1)
+        user_obj = CustomUser.c_objects.create_user(email=email, password=pass1)
         user_obj.save()
         email_token = str(uuid.uuid4())
 
@@ -212,7 +223,7 @@ def ForgetPassword(request):
         if request.method == "POST":
             email = request.POST.get("email")
 
-            if not CustomUser.objects.filter(email=email).first():
+            if not CustomUser.c_objects.filter(email=email).first():
                 messages.warning(request, "Not user found with this email.")
                 return redirect("/forget_password/")
 
@@ -254,7 +265,7 @@ class ChangePassword(APIView):
                 messages.warning(request, "No user id found.")
                 return redirect(f"/change_password/{token}/")
 
-            user_obj = CustomUser.objects.filter(email=user_pk).first()
+            user_obj = CustomUser.c_objects.filter(email=user_pk).first()
             if not user_obj:
                 messages.warning(request, "No user pk found.")
                 return redirect(f"/change_password/{token}/")
@@ -286,8 +297,17 @@ def user_verify(request, email_token):
             messages.error(request, "token not valid ")
             return redirect("login")
 
-        user = CustomUser.objects.filter(email=model_instance["email"]).first()
-        profile_obj = user.profile
+        xuser = CustomUser.c_objects.filter(email=model_instance["email"]).first()
+
+        if xuser is  None:
+           return Response({"detail": "user not found."}, status=status.HTTP_404_NOT_FOUND)
+         
+        try:
+          profile_obj = Profile.objects.get(CustomUser_id=xuser.id)
+        except Profile.DoesNotExist:
+         return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+           
+       
         if profile_obj:
             if profile_obj.is_email_verified:
                 messages.info(request, "Your account is already verified.")
@@ -298,7 +318,7 @@ def user_verify(request, email_token):
             profile_obj.save()
             subject = f"!! New User Registered In {settings.APP_NAME} !!"
             message = f"""Hi , We have noticed that new user is registered in your  {settings.APP_NAME} Authentication System .
-            Details of user -  Email - {user.email}
+            Details of user -  Email - {xuser.email}
              """
             send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [settings.DEFAULT_FROM_EMAIL])
             messages.success(request, "Your account has been verified. Now you can login.")
