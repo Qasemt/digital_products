@@ -23,7 +23,7 @@ class RegistrationForm(UserCreationForm):
     def clean_email(self):
         email = self.cleaned_data["email"].lower()
         try:
-            account = CustomUser.objects.exclude(pk=self.instance.pk).get(email=email)
+            account = CustomUser.c_objects.exclude(pk=self.instance.pk).get(email=email)
         except CustomUser.DoesNotExist:
             return email
         raise forms.ValidationError('Email "%s" is already in use.' % account)
