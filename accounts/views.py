@@ -1,3 +1,4 @@
+from cgi import print_arguments
 import json
 import uuid
 from enum import IntEnum
@@ -14,9 +15,8 @@ from django.contrib import messages
 from .models import CustomUser
 from django.core.mail import send_mail
 from django.conf import settings
-from django.core.cache import cache
 from rest_framework.status import HTTP_404_NOT_FOUND
-
+from rest_framework.exceptions import NotFound
 #:::::::::: Modelsss
 class ActionType(IntEnum):
     FORGET_PASSWORD = 1
@@ -163,14 +163,19 @@ def register_view(request, *args, **kwargs):
         if pass1 != pass2:
             messages.warning(request, "Both passwords should match!")
             return HttpResponseRedirect(request.path_info)
-
+       
+        email_token = str(uuid.uuid4())
         user_obj = CustomUser.c_objects.create_user(email=email, password=pass1)
         user_obj.save()
-        email_token = str(uuid.uuid4())
+        
 
-        m = ActionPassword(email, type_action=ActionType.VERIFYING_EMAIL)
-        json_string = m.to_json()
-        cache.set(email_token, json_string, 3600)  # Cache the data for 10 minute
+        try:
+         profile_obj = Profile.objects.get(CustomUser_id=user_obj.id)
+        except Profile.DoesNotExist:
+         return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        profile_obj.email_token = email_token
+        profile_obj.save()
 
         send_mail_after_signup(email, email_token)
         messages.success(request, "Email has been sent to verify your account!")
@@ -187,7 +192,6 @@ def get_redirect_if_exists(request):
     return redirect
 
 
-import uuid
 
 
 # for verifying email
@@ -205,7 +209,7 @@ def send_mail_after_signup(email, email_token):
 
 # for sending forget password link
 def send_forget_password_mail(email, token):
-    subject = "Digital Products (Your forget password link)"
+    subject = f"{settings.APP_NAME} (Your forget password link)"
     if settings.IS_DEVEL:
         message = f"Hi , click on the link to reset your password http://127.0.0.1:8000/change_password/{token}/"
     else:
@@ -222,15 +226,19 @@ def ForgetPassword(request):
     try:
         if request.method == "POST":
             email = request.POST.get("email")
-
-            if not CustomUser.c_objects.filter(email=email).first():
+            c_user = CustomUser.c_objects.filter(email=email).first()
+            if not c_user:
                 messages.warning(request, "Not user found with this email.")
                 return redirect("/forget_password/")
-
+           
             token = str(uuid.uuid4())
-            m = ActionPassword(email, type_action=ActionType.FORGET_PASSWORD)
-            json_string = m.to_json()
-            cache.set(token, json_string, 3600)  # Cache the data for 10 minute
+            try:
+             profile_obj = Profile.objects.get(CustomUser_id=c_user.pk)
+            except Profile.DoesNotExist:
+             return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)    
+
+            profile_obj.email_token = token
+            profile_obj.save()
 
             send_forget_password_mail(email, token)
             messages.success(request, "An email is sent to reset your password.")
@@ -247,25 +255,33 @@ def ForgetPassword(request):
 class ChangePassword(APIView):
     def get(self, request, token):
         context = {}
-        cached_data = cache.get(key=token)
-        if cached_data:
-            model_instance = json.loads(cached_data)
-            context = {"user_pk": model_instance["email"]}
-        else:
-            messages.error(request, "Token is invalid.")
-            return redirect("login")
+        try:
+            profile_obj = Profile.objects.get(email_token=token)
+        except Profile.DoesNotExist:
+            messages.warning(request, "Profile not found.")
+            return redirect("login")  
+        
+        try:
+            c_user = CustomUser.c_objects.get(pk=profile_obj.CustomUser.id)
+        except CustomUser.DoesNotExist:
+            messages.warning(request, "User not found.")
+            return redirect("login") 
+    
+  
+        context = {"user_email": c_user.email}
+       
 
         return render(request, "change_password.html", context)
 
     def post(self, request, token):
         try:
-            user_pk = request.data.get("user_pk")
+            user_email = request.data.get("user_email")
 
-            if user_pk is None:
+            if user_email is None:
                 messages.warning(request, "No user id found.")
                 return redirect(f"/change_password/{token}/")
 
-            user_obj = CustomUser.c_objects.filter(email=user_pk).first()
+            user_obj = CustomUser.c_objects.filter(email=user_email).first()
             if not user_obj:
                 messages.warning(request, "No user pk found.")
                 return redirect(f"/change_password/{token}/")
@@ -288,44 +304,38 @@ class ChangePassword(APIView):
 
 def user_verify(request, email_token):
 
-    try:
-        cached_data = cache.get(key=email_token)
-        model_instance = {}
-        if cached_data:
-            model_instance = json.loads(cached_data)
-        else:
-            messages.error(request, "token not valid ")
-            return redirect("login")
-
-        xuser = CustomUser.c_objects.filter(email=model_instance["email"]).first()
-
-        if xuser is  None:
-           return Response({"detail": "user not found."}, status=status.HTTP_404_NOT_FOUND)
-         
         try:
-          profile_obj = Profile.objects.get(CustomUser_id=xuser.id)
+         profile_obj = Profile.objects.get(email_token=email_token)
         except Profile.DoesNotExist:
-         return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
-           
-       
-        if profile_obj:
-            if profile_obj.is_email_verified:
-                messages.info(request, "Your account is already verified.")
-                print(messages)
-                return redirect("login")
+         return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)    
+        
 
-            profile_obj.is_email_verified = True
-            profile_obj.save()
-            subject = f"!! New User Registered In {settings.APP_NAME} !!"
-            message = f"""Hi , We have noticed that new user is registered in your  {settings.APP_NAME} Authentication System .
-            Details of user -  Email - {xuser.email}
-             """
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [settings.DEFAULT_FROM_EMAIL])
-            messages.success(request, "Your account has been verified. Now you can login.")
-            return redirect("login")
-        else:
-            return redirect("error")
-    except Exception as e:
-        print(e)
-        return render(request, "login.html")
-    # return render(request, 'verify.html')
+        try:
+         c_user = CustomUser.c_objects.get(pk=profile_obj.CustomUser.id)
+        except Profile.DoesNotExist:
+         return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)    
+        
+        try:
+   
+           if profile_obj:
+               if profile_obj.is_email_verified:
+                   messages.info(request, "Your account is already verified.")
+                   print(messages)
+                   return redirect("login")
+   
+               profile_obj.is_email_verified = True
+               profile_obj.email_token =None
+               profile_obj.save()
+               subject = f"!! New User Registered In {settings.APP_NAME} !!"
+               message = f"""Hi , We have noticed that new user is registered in your  {settings.APP_NAME} Authentication System .
+               Details of user -  Email - {c_user.email}
+                """
+               send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [settings.DEFAULT_FROM_EMAIL])
+               messages.success(request, "Your account has been verified. Now you can login.")
+               return redirect("login")
+           else:
+               return redirect("error")
+        except Exception as e:
+          print(e)
+          return render(request, "login.html")
+ 

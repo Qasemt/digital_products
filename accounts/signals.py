@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import CustomUser, Profile
-from requests import Response
+from rest_framework.response import Response
 from rest_framework import status
 
 

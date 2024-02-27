@@ -1,8 +1,8 @@
 import re
 from django.db import models
 from django.core.files.storage import default_storage
+from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
-from django.db.models.signals import post_save
 from django.contrib.auth.models import AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
 from django.contrib.auth.base_user import BaseUserManager
@@ -51,6 +51,7 @@ class Profile(models.Model):
     first_name = models.CharField(max_length=255, blank=True)
     last_name = models.CharField(max_length=255, blank=True)
     birthday = models.DateField(null=True)
+    email_token = models.UUIDField(blank=True, null=True)
     mobile_number = models.CharField(
         max_length=20,
     )
